@@ -1,5 +1,17 @@
+# Core
 torch>=2.1.0
 transformers>=4.36.0
+
+# Quantization & Device Placement
+accelerate
+bitsandbytes
+
+# RAG Components (LangChain + Embedding + Vector DB)
 langchain
 faiss-cpu
 sentence-transformers
+
+# Utilities
+pandas
+tqdm
+ipykernel
