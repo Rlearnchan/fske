@@ -18,10 +18,11 @@
   ```bash
   pip install -r requirements.txt
   ```
-- 가상환경 설정 및 의존성 설치를 자동화하려면 `setup.sh` 스크립트를 사용할 수 있습니다:
+- 가상환경 설정 및 의존성 설치를 자동화하려면 `setup.sh` 스크립트를 사용할 수 있습니다. 스크립트 실행 후 다음 명령으로 가상환경을 활성화하세요:
   ```bash
   chmod +x setup.sh
   ./setup.sh
+  source .venv/bin/activate
   ```
 
 ## 훈련 방법
