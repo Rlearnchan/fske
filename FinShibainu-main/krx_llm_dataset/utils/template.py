@@ -3,7 +3,6 @@
 from typing import List, Literal, Optional
 import os
 from pydantic import BaseModel
-from openai import OpenAI
 from types import SimpleNamespace
 from textwrap import dedent
 from jinja2 import FileSystemLoader, Environment

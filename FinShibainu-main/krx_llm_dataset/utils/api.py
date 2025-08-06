@@ -6,8 +6,11 @@ import json
 import requests
 import random
 from datetime import datetime
-from openai import OpenAI
-import tiktoken
+import re
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
 from .utils import load_env
 from .config import AGENT_LIST, PathConfig
 from .template import PromptTemplates
@@ -23,6 +26,25 @@ from .datamodel import (
     KoreanMCQAFromMCQAOutputFormat,
     MCQAFromMCQAOutputFormat
 )
+
+
+# cache for loaded local models
+_MODEL_CACHE: Dict[str, Any] = {}
+
+
+def _load_local_model(model_path: str):
+    """Load a local HF model with 4bit quantization if not already loaded."""
+    if model_path not in _MODEL_CACHE:
+        quant = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            device_map="auto",
+            torch_dtype=torch.float16,
+            quantization_config=quant,
+        )
+        _MODEL_CACHE[model_path] = (tokenizer, model)
+    return _MODEL_CACHE[model_path]
 
 
 def _random_agent():
@@ -86,39 +108,32 @@ def naver_search(
     else:
         return response.raise_for_status()
 
-def _completion(user_prompt, system_prompt: str = "", response_format = None, model: str = "gpt-4o-mini"):
-    """ OPENAI_API로 Completion을 생성
+def _completion(user_prompt, system_prompt: str = "", response_format = None, model: str = "/workspace/models/gemma-ko-7b"):
+    """로컬 LLM을 이용해 Completion을 생성"""
 
-    Args:
-        user_prompt: User Prompt
-        system_prompt: System Prompt
-        response_format: GPT가 Generation 결과를 강제하는 포맷
-        model: OpenAI 모델명
+    tokenizer, lm = _load_local_model(model)
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_prompt})
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = tokenizer(prompt, return_tensors="pt").to(lm.device)
+    output_ids = lm.generate(**inputs, max_new_tokens=1024)
+    text = tokenizer.decode(output_ids[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
 
-    Returns: GPT로부터 제공받은 답변 텍스트
-    """
-    client = OpenAI(timeout=60)
-
-    if not response_format:
-        response = client.beta.chat.completions.parse(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format=response_format,
-        )
+    if response_format:
+        try:
+            parsed = response_format.model_validate_json(text)
+        except Exception:
+            match = re.search(r"\{.*\}", text, re.DOTALL)
+            if not match:
+                raise
+            parsed = response_format.model_validate_json(match.group(0))
+        message = type("obj", (), {"parsed": parsed})
     else:
-        response = client.beta.chat.completions.parse(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format=response_format
-        )
+        message = type("obj", (), {"parsed": text})
 
-    return response
+    return type("obj", (), {"choices": [type("obj", (), {"message": message})]})
 
 def get_request(url: str, headers: dict = None, params: dict = None):
     """ URL로 GET Request 요청
@@ -166,7 +181,7 @@ def _mcqa_gpt_completion(
         if_fewshot: bool = True,
         n_datasets: int = 5,
         step: int = None,
-        oai_model = "gpt-4o-mini"
+        oai_model = "/workspace/models/gemma-ko-7b"
 ):
     """ MCQA로 전달되는 GPT Completion
 
@@ -251,7 +266,7 @@ def _qa_gpt_completion(
         domain_type: Literal["common", "accounting", "market", "law", "quant"] = None,
         n_datasets: int = 5,
         step: int = None,
-        oai_model = "gpt-4o-mini"
+        oai_model = "/workspace/models/gemma-ko-7b"
 ):
     """ QA로 전달되는 GPT Completion
 
@@ -330,7 +345,7 @@ def _qa_gpt_completion(
 
 def _hallucination_gpt_completion(
         data: List[Dict] = None,
-        oai_model="gpt-4o-mini"
+        oai_model="/workspace/models/gemma-ko-7b"
 ):
     """ 생성한 데이터셋이 Hallucination인지 판단. 입력되는 data는 _mcqa_gpt_completion 또는 _qa_gpt_completion의 형태여야함
 
@@ -361,7 +376,7 @@ def _hallucination_gpt_completion(
 
 def _preference_gpt_completion(
         data: List[Dict] = None,
-        oai_model="gpt-4o-mini"
+        oai_model="/workspace/models/gemma-ko-7b"
 ):
     """ 생성한 데이터셋의 답변 2개중 Preference를 판단. _qa_gpt_completion에서 2번째 답변까지 생성된 상태여야함
 
@@ -391,7 +406,7 @@ def _preference_gpt_completion(
 
 def _value_gpt_completion(
         data: List[Dict] = None,
-        oai_model="gpt-4o-mini"
+        oai_model="/workspace/models/gemma-ko-7b"
 ):
     """ 생성한 데이터셋의 답변을 Fineweb-edu 기반 프롬프트로 교육적 가치를 0~5점사이의 점수로 판단
 
@@ -418,7 +433,7 @@ def _value_gpt_completion(
 
 def _classification_gpt_completion(
         data: List[Dict] = None,
-        oai_model="gpt-4o-mini"
+        oai_model="/workspace/models/gemma-ko-7b"
 ):
     """ 데이터가 어떤 task_type, domain_type인지 분류를 요청
     예시) knowledge_accounting, knowledge_market, quant, law...
@@ -452,7 +467,7 @@ def completion(
         domain_type: Literal["common", "accounting", "market", "law", "academy"] = None,
         n_datasets: int = 5,
         step: int = None,
-        oai_model = "gpt-4o-mini",
+        oai_model = "/workspace/models/gemma-ko-7b",
         **kwargs
 ):
     """ 모든 Completion을 통합하는 API
@@ -528,17 +543,11 @@ def completion(
             oai_model=oai_model
         )
 
-def calculate_tokens(string: str, encoding_name: str = "o200k_base") -> int:
-    """ tiktoken 기반으로 토큰 수를 계산
+def calculate_tokens(string: str, model_path: str | None = None) -> int:
+    """로컬 토크나이저 기반으로 토큰 수를 계산"""
 
-    Args:
-        string: 인코딩하려는 텍스트값
-        encoding_name: o200k_base: gpt-4o, gpt-4o-mini
-
-    Returns: 토큰 수
-
-    """
-    encoding = tiktoken.get_encoding(encoding_name)
-    num_tokens = len(encoding.encode(string))
-    return num_tokens
+    if model_path is None:
+        model_path = os.environ.get("LOCAL_LLM_PATH", "/workspace/models/gemma-ko-7b")
+    tokenizer, _ = _load_local_model(model_path)
+    return len(tokenizer(string)["input_ids"])
 
