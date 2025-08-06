@@ -663,7 +663,7 @@ def mcqa_graph():
             "n_datasets": 5, # Step별로 Refence당 생성할 MCQA 데이터셋 수
             "max_step": 2, # 몇 Step까지 실행할 것인지
             "n_workers": 300, # GPT로 생성시 Concurrent의 Worker 수
-            "oai_model": "gpt-4o-mini", # gpt 모델명. Dictionary 타입으로 각 completion마다 정의 가능
+            "oai_model": "/workspace/models/gemma-ko-7b", # 로컬 모델 경로. Dictionary 타입으로 각 completion마다 정의 가능
             "error_tolerance_ratio": 0.03, # 허용할 에러율. 해당 에러율 이하로 에러 발생시 다음 단계로 진행
             "show_log_error": False, # 에러별로 발생한 Index를 로그로 표시
             "data": data # Reference 데이터
@@ -739,7 +739,7 @@ def qa_graph():
             "domain_type": "common", # common, market, accounting, law, quant
             "n_datasets": 5, # Refence당 생성할 QA 데이터셋 수
             "n_workers": 300, # GPT로 생성시 Concurrent의 Worker 수
-            "oai_model": "gpt-4o-mini", # gpt 모델명. Dictionary 타입으로 각 completion마다 정의 가능
+            "oai_model": "/workspace/models/gemma-ko-7b", # 로컬 모델 경로. Dictionary 타입으로 각 completion마다 정의 가능
             "error_tolerance_ratio": 0.03, # 허용할 에러율. 해당 에러율 이하로 에러 발생시 다음 단계로 진행
             "show_log_error": False, # 에러별로 발생한 Index를 로그로 표시
             "data": data # Reference 데이터
@@ -916,7 +916,7 @@ def classification_graph():
             "save_dir": ".", # 저장할 디렉토리명
             "save_file_name": "sisa_encyc", # 저장할 파일명. 파일명에 task_type과 eval_type, domain_type이 추가됨. 확장자는 자동으로 jsonl로 생성됨.
             "eval_type": "classfication", # mcqa, qa
-            "oai_model": "gpt-4o-mini", # gpt 모델명. Dictionary 타입으로 각 completion마다 정의 가능
+            "oai_model": "/workspace/models/gemma-ko-7b", # 로컬 모델 경로. Dictionary 타입으로 각 completion마다 정의 가능
             "error_tolerance_ratio": 0.03, # 허용할 에러율. 해당 에러율 이하로 에러 발생시 다음 단계로 진행
             "show_log_error": False, # 에러별로 발생한 Index를 로그로 표시
             "data": data # Reference 데이터

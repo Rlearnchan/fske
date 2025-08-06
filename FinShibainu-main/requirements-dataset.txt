@@ -17,6 +17,7 @@ jinja2
 langgraph
 langchain
 langchain-community
-tiktoken
-openai
+transformers
+bitsandbytes
+accelerate
 pygments
