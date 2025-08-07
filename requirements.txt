@@ -13,3 +13,7 @@ tqdm
 jupyterlab-widgets
 
 # rag / embedding
+sentence-transformers==2.2.2
+langchain==0.1.14
+pypdf==3.17.4
+faiss-cpu==1.7.4
