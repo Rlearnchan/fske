@@ -1,0 +1,24 @@
+# Pin torch to the preinstalled PyTorch version in the runpod image to avoid unexpected upgrades.
+torch==2.1.0
+
+# Transformers version pinned to 4.55.0 or later (>=4.46) to support the latest models while remaining compatible with PyTorch 2.1.
+# See release notes for installation requirements: Transformers works with Python 3.9+ and PyTorch 2.1+https://pypi.org/project/transformers/#:~:text=Transformers%20works%20with%20Python%203,1.
+transformers==4.55.0
+
+# Accelerate is used for multi‑accelerator and mixed precision training.  Version 1.9.0 is the July 2025 release and requires Python >=3.9https://pypi.org/project/accelerate/#:~:text=accelerate%201.
+accelerate==1.9.0
+
+# Bitsandbytes provides efficient 8‑bit/4‑bit optimizers and matrix multiplication.  Version 0.41.1 is one of the last releases known to work with PyTorch 2.1.0https://huggingface.co/evilfreelancer/ruGPT-3.5-13B-lora/raw/e61e1ad171c5eed297e3688296e63f94687a0d51/README.md#:~:text=.
+bitsandbytes==0.41.1
+
+# Standard data‑analysis library.  Pandas 2.3.1 (Jul 2025) supports Python 3.9+ and requires NumPy ≥1.22https://pandas.pydata.org/docs/getting_started/install.html#:~:text=Required%20dependencies.
+pandas==2.3.1
+
+# Lightweight progress bars.  Version 4.67.1 (Nov 2024) works on Python 3.7+https://pypi.org/project/tqdm/#:~:text=tqdm%204.
+tqdm==4.67.1
+
+# JupyterLab widgets extension.  Version 3.0.15 (May 2025) supports Python 3.7+ and integrates with ipywidgetshttps://pypi.org/project/jupyterlab-widgets/#:~:text=jupyterlab.
+jupyterlab-widgets==3.0.15
+
+# Client library to interact with the Hugging Face Hub.  Version 0.34.3 (Jul 2025) requires Python ≥ 3.8https://pypi.org/project/huggingface-hub/#:~:text=huggingface.
+huggingface-hub==0.34.3
