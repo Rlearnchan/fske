@@ -1,0 +1,15 @@
+# Dependencies for the fske project
+# Requires Python 3.10 and CUDA 11.8 (Runpod environment)
+torch==2.1.0+cu118
+pandas
+tqdm
+transformers
+accelerate
+bitsandbytes==0.43.2
+jupyterlab-widgets
+datasets
+huggingface_hub
+sentence-transformers
+langchain
+pypdf
+faiss-cpu
