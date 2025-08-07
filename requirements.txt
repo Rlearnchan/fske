@@ -1,7 +1,6 @@
-transformers>=4.46.0
-safetensors==0.3.3
+transformers>=4.46.0 # llm
 accelerate
-bitsandbytes==0.43.2
+bitsandbytes
 pandas
 tqdm
 jupyterlab-widgets
