@@ -52,8 +52,11 @@ class PathConfig(BaseConfigMixin):
         self.QA: str = str(Path(self.OUTPUTS).joinpath("qa"))  # krx-llm-competition/data/outputs/mcqa
         self.PROMPT_DIR: str = str(Path(self.ROOT).joinpath("utils/prompt_templates"))
         self.FEWSHOT_DIR: str = str(Path(self.ROOT).joinpath("utils/fewshot"))
-        # 로컬 LLM 모델 경로
-        self.LOCAL_MODEL_PATH: str = "/workspace/models/exaone-4.0-32b"
+        # 로컬 LLM 모델 경로 (환경변수 또는 기본값 사용)
+        self.LOCAL_MODEL_PATH: str = os.getenv(
+            "LOCAL_MODEL_PATH", 
+            "/workspace/models/exaone-4.0-32b"
+        )
         super().__init__()
 
 class PromptConfig(BaseConfigMixin):

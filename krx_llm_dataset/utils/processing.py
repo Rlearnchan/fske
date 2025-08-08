@@ -14,6 +14,7 @@ from loguru import logger
 import pymupdf
 from .api import calculate_tokens
 from .io import read_jsonl, write_jsonl
+import json
 
 ANSWER_MAP = {0: "A", 1: "B", 2: "C", 3: "D", 4: "E", 5: "F", 6: "G"}
 REVERSE_ANSWER_MAP = {v: k for k, v in ANSWER_MAP.items()} # {"A": 0, "B": 1 ...}
@@ -32,6 +33,152 @@ def make_index(data: List[Dict], prefix: str):
     df = pd.DataFrame(data)
     df['index'] = [f"{prefix}_{i}" for i in range(len(df))]
     return df.to_dict("records")
+
+def get_law_text(law_file_path: str):
+    """법률 JSON 파일을 읽어서 처리 가능한 형태로 변환합니다.
+    
+    Args:
+        law_file_path: 법률 JSON 파일 경로
+    
+    Returns:
+        List[Dict]: [{"page": int, "title": str, "contents": str}, ...] 형태의 데이터
+    """
+    with open(law_file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    result = []
+    
+    # selected_laws.json 형태 (법률 목록)
+    if isinstance(data, list):
+        for idx, law in enumerate(data):
+            if isinstance(law, dict) and "법령명" in law:
+                title = law.get("법령명", f"법률_{idx}")
+                contents = f"법령명: {title}\n"
+                contents += f"소관부처: {law.get('소관부처명', '')}\n"
+                contents += f"법령구분: {law.get('법령구분명', '')}\n"
+                contents += f"시행일자: {law.get('시행일자', '')}\n"
+                contents += f"분류: {law.get('분류', '')}"
+                
+                result.append({
+                    "page": idx,
+                    "title": title,
+                    "contents": contents
+                })
+    
+    # law_sample.json 형태 (상세 법령 내용)
+    elif isinstance(data, dict) and "법령" in data:
+        law_data = data["법령"]
+        
+        # 기본정보 처리
+        if "기본정보" in law_data:
+            basic_info = law_data["기본정보"]
+            title = basic_info.get("법령명_한글", "법령")
+            contents = f"법령명: {title}\n"
+            contents += f"법령ID: {basic_info.get('법령ID', '')}\n"
+            contents += f"소관부처: {basic_info.get('소관부처', {}).get('content', '')}\n"
+            contents += f"법종구분: {basic_info.get('법종구분', {}).get('content', '')}\n"
+            contents += f"공포일자: {basic_info.get('공포일자', '')}\n"
+            contents += f"시행일자: {basic_info.get('시행일자', '')}\n"
+            
+            result.append({
+                "page": 0,
+                "title": f"{title}_기본정보",
+                "contents": contents
+            })
+        
+        # 조문 처리
+        if "조문" in law_data:
+            articles = law_data["조문"]
+            if "조문단위" in articles:
+                for idx, article in enumerate(articles["조문단위"]):
+                    if isinstance(article, dict):
+                        article_title = article.get("조문제목", f"제{idx+1}조")
+                        article_content = ""
+                        
+                        # 조문내용 처리
+                        if "조문내용" in article:
+                            content_list = article["조문내용"]
+                            if isinstance(content_list, list) and len(content_list) > 0:
+                                if isinstance(content_list[0], list):
+                                    article_content = "\n".join(content_list[0])
+                                else:
+                                    article_content = "\n".join(content_list)
+                        
+                        if article_content.strip():
+                            result.append({
+                                "page": idx + 1,
+                                "title": f"{title}_{article_title}",
+                                "contents": article_content
+                            })
+        
+        # 부칙 처리
+        if "부칙" in law_data and "부칙단위" in law_data["부칙"]:
+            for idx, appendix in enumerate(law_data["부칙"]["부칙단위"]):
+                if isinstance(appendix, dict) and "부칙내용" in appendix:
+                    appendix_content = ""
+                    content_list = appendix["부칙내용"]
+                    if isinstance(content_list, list) and len(content_list) > 0:
+                        if isinstance(content_list[0], list):
+                            appendix_content = "\n".join(content_list[0])
+                        else:
+                            appendix_content = "\n".join(content_list)
+                    
+                    if appendix_content.strip():
+                        result.append({
+                            "page": len(result),
+                            "title": f"{title}_부칙_{idx+1}",
+                            "contents": appendix_content
+                        })
+    
+    return result
+
+def process_law_data(
+    law_file_path: str,
+    title: str = None,
+    if_filter_punctuation: bool = True,
+    filter_punctuation_ratio: float = 0.5,
+    if_filter_english: bool = True,
+    filter_english_ratio: float = 0.5,
+    if_filter_number: bool = True,
+    filter_number_ratio: float = 0.5,
+    if_remove_unicode: bool = True,
+    if_normalize: bool = True,
+    token_threshold: int = 200,
+    return_type: str = "split",
+    chunk_size: int = 10000,
+):
+    """법률 JSON 데이터를 읽고 quality_filter를 적용합니다.
+    
+    Args:
+        law_file_path: 법률 JSON 파일 경로
+        title: 데이터셋 제목 (None이면 파일명 사용)
+        기타 파라미터들: quality_filter와 동일
+    
+    Returns:
+        필터링된 법률 데이터
+    """
+    # 법률 JSON 파일 읽기
+    law_data = get_law_text(law_file_path)
+    
+    if title is None:
+        title = os.path.basename(law_file_path).replace('.json', '')
+    
+    # quality_filter 적용
+    return quality_filter(
+        data=law_data,
+        title=title,
+        if_filter_punctuation=if_filter_punctuation,
+        filter_punctuation_ratio=filter_punctuation_ratio,
+        if_filter_english=if_filter_english,
+        filter_english_ratio=filter_english_ratio,
+        if_filter_number=if_filter_number,
+        filter_number_ratio=filter_number_ratio,
+        if_remove_unicode=if_remove_unicode,
+        if_normalize=if_normalize,
+        token_threshold=token_threshold,
+        return_type=return_type,
+        chunk_size=chunk_size,
+    )
 
 def convert_list_to_dict(result: List[Dict], keys: List[str]):
     """ Concurrent로 얻은 GPT의 Completion을 Dataset으로 저장하기 위해 dict형태로 변환.

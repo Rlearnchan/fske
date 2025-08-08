@@ -50,6 +50,8 @@ from .processing import (
     filter_number,
     filter_english,
     remove_unicode,
+    get_law_text,
+    process_law_data,
 )
 from .template import (
     PromptTemplates,
